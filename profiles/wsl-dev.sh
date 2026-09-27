@@ -19,7 +19,7 @@ TIMEZONE=America/Sao_Paulo
 LOCALES=(en_US.UTF-8 pt_BR.UTF-8)
 
 # 05-base: packages on top of the fixed bootstrap set
-EXTRA_PACKAGES=()
+EXTRA_PACKAGES=(neovim)
 
 # 10-shell, 99-dotfiles
 ZSH_THEME=robbyrussell
