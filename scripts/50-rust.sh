@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rust via rustup (sourced from .zshenv).
+# Rust via rustup, with rust-analyzer, clippy and rustfmt.
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 log "Rust"

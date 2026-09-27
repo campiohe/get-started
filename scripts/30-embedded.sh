@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Embedded / STM32: ARM cross-toolchain, C++ runtime, debug servers.
+# profile: EMBEDDED_GROUPS
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 log "ARM embedded toolchain"
@@ -20,7 +21,7 @@ warn "The archive version differs per Ubuntu release (24.04 shipped 13.2.rel1)."
 warn "If a project pins a toolchain version, install it from the Arm Developer site instead."
 
 # dialout/plugdev are what ST-Link and USB serial adapters need.
-for grp in dialout plugdev; do
+for grp in "${EMBEDDED_GROUPS[@]}"; do
     if id -nG "$USER" | tr ' ' '\n' | grep -qx "$grp"; then
         info "already in group $grp"
     else

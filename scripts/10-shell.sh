@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # zsh + oh-my-zsh + plugins, starship, zoxide, mise, eza, Nerd Font.
+# profile: ZSH_PLUGINS ZSH_PLUGIN_SOURCES STARSHIP MISE_TOOLS NERD_FONT
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 log "zsh"
@@ -23,14 +24,21 @@ fi
 
 log "oh-my-zsh custom plugins"
 ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
-clone_or_pull https://github.com/Aloxaf/fzf-tab.git                  "$ZSH_CUSTOM/plugins/fzf-tab"
-clone_or_pull https://github.com/zdharma-continuum/fast-syntax-highlighting.git "$ZSH_CUSTOM/plugins/fast-syntax-highlighting"
-clone_or_pull https://github.com/zsh-users/zsh-autosuggestions.git   "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
-clone_or_pull https://github.com/fdellwing/zsh-bat.git              "$ZSH_CUSTOM/plugins/zsh-bat"
-# command-not-found, extract and sudo are oh-my-zsh built-ins; nothing to clone.
+# Clone exactly the intersection of the profile's plugin list and the sources
+# it declares. Anything else is assumed to be an oh-my-zsh built-in.
+for plugin in "${ZSH_PLUGINS[@]}"; do
+    url="${ZSH_PLUGIN_SOURCES[$plugin]:-}"
+    if [ -n "$url" ]; then
+        clone_or_pull "$url" "$ZSH_CUSTOM/plugins/$plugin"
+    else
+        info "$plugin: built-in, nothing to clone"
+    fi
+done
 
 log "starship prompt"
-if have starship; then
+if [ "$STARSHIP" != true ]; then
+    info "starship disabled by profile '$PROFILE_NAME'"
+elif have starship; then
     info "starship already installed"
 else
     curl -fsSL https://starship.rs/install.sh | sudo sh -s -- --yes
@@ -38,7 +46,9 @@ fi
 
 # starship works with no config file at all, so only install one if the repo
 # actually carries it. Drop a starship.toml into dotfiles/ and it is picked up.
-if [ -f "$REPO_DIR/dotfiles/starship.toml" ]; then
+if [ "$STARSHIP" != true ]; then
+    :
+elif [ -f "$REPO_DIR/dotfiles/starship.toml" ]; then
     mkdir -p "$HOME/.config"
     backup "$HOME/.config/starship.toml"
     cp "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
@@ -61,8 +71,14 @@ else
     curl -fsSL https://mise.run | sh
 fi
 mkdir -p "$HOME/.config/mise"
-cp "$REPO_DIR/dotfiles/mise-config.toml" "$HOME/.config/mise/config.toml"
-info "mise config installed (node = latest)"
+{
+    echo "# Generated from profile '$PROFILE_NAME'. Do not edit; edit the profile."
+    echo "[tools]"
+    for tool in $(printf '%s\n' "${!MISE_TOOLS[@]}" | sort); do
+        printf '%s = "%s"\n' "$tool" "${MISE_TOOLS[$tool]}"
+    done
+} > "$HOME/.config/mise/config.toml"
+info "mise config generated from profile '$PROFILE_NAME'"
 "$HOME/.local/bin/mise" install || warn "mise install failed; run it by hand later"
 
 log "eza"
@@ -77,27 +93,29 @@ elif ! have eza; then
     echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
         | sudo tee /etc/apt/sources.list.d/gierens.list >/dev/null
     sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+    # shellcheck disable=SC2034  # read by apt_update_once in lib.sh
     APT_UPDATED=0
     apt_install eza
 else
     info "eza already installed"
 fi
 
-log "FiraCode Nerd Font"
+FONT_NAME="$NERD_FONT"
+log "$FONT_NAME Nerd Font"
 FONT_DIR="$HOME/.local/share/fonts"
-if compgen -G "$FONT_DIR/FiraCodeNerdFont*" >/dev/null; then
-    info "FiraCode Nerd Font already present"
+if compgen -G "$FONT_DIR/${FONT_NAME}NerdFont*" >/dev/null; then
+    info "$FONT_NAME Nerd Font already present"
 else
     apt_install fontconfig
     mkdir -p "$FONT_DIR"
     tmp="$(mktemp -d)"
-    curl -fsSL -o "$tmp/FiraCode.zip" \
-        https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip
-    unzip -qo "$tmp/FiraCode.zip" -d "$tmp/FiraCode"
-    cp "$tmp"/FiraCode/FiraCodeNerdFontMono-*.ttf "$FONT_DIR/"
+    curl -fsSL -o "$tmp/$FONT_NAME.zip" \
+        "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$FONT_NAME.zip"
+    unzip -qo "$tmp/$FONT_NAME.zip" -d "$tmp/$FONT_NAME"
+    cp "$tmp/$FONT_NAME"/${FONT_NAME}NerdFontMono-*.ttf "$FONT_DIR/"
     rm -rf "$tmp"
     fc-cache -f "$FONT_DIR" >/dev/null
-    info "installed FiraCode Nerd Font Mono"
+    info "installed $FONT_NAME Nerd Font Mono"
 fi
 
 # Note: under WSL this font is only used by Linux programs that render text

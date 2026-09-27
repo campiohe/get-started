@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # C/C++ toolchain: build system, GCC, and a pinned LLVM/clang release.
+# profile: CLANG_VERSION
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
+# The profile sets CLANG_VERSION; an exported one still wins (lib.sh).
 # Override with: CLANG_VERSION=21 ./install.sh --only cpp
-CLANG_VERSION="${CLANG_VERSION:-22}"
 
 log "Build tooling"
 apt_install build-essential make cmake ninja-build gdb doxygen graphviz
@@ -30,6 +31,7 @@ else
     sudo chmod a+r /etc/apt/keyrings/llvm.gpg
     echo "deb [signed-by=/etc/apt/keyrings/llvm.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${CLANG_VERSION} main" \
         | sudo tee "/etc/apt/sources.list.d/llvm-${CLANG_VERSION}.list" >/dev/null
+    # shellcheck disable=SC2034  # read by apt_update_once in lib.sh
     APT_UPDATED=0
 fi
 

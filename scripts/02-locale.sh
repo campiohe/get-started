@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Timezone and locale.
+# profile: TIMEZONE LOCALES
 #
 # Override with:  TIMEZONE=Europe/Lisbon LOCALE=en_GB.UTF-8 ./install.sh --only locale
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
-TIMEZONE="${TIMEZONE:-America/Sao_Paulo}"
-LOCALE="${LOCALE:-en_US.UTF-8}"
-# Generated but not made default - useful for LC_TIME/LC_MONETARY overrides.
-EXTRA_LOCALES="${EXTRA_LOCALES:-pt_BR.UTF-8}"
+# TIMEZONE and LOCALES come from the profile; an exported TIMEZONE still wins.
+# First in LOCALES is the default LANG; the rest are generated but not made
+# default - useful for LC_TIME/LC_MONETARY overrides.
+LOCALE="${LOCALE:-${LOCALES[0]}}"
+EXTRA_LOCALES="${EXTRA_LOCALES:-}"
 
 log "Timezone"
 current_tz="$(timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || echo unknown)"
@@ -30,7 +32,7 @@ log "Locale"
 apt_install locales
 
 # Ubuntu ships only C.UTF-8 generated, which sorts bytewise and formats oddly.
-want=("$LOCALE")
+want=("$LOCALE" "${LOCALES[@]:1}")
 # shellcheck disable=SC2206
 [ -n "$EXTRA_LOCALES" ] && want+=(${EXTRA_LOCALES//,/ })
 

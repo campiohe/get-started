@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # GitHub CLI, git configuration, and an SSH key registered with GitHub.
+# profile: GIT_PROTOCOL GIT_EMAIL
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 log "GitHub CLI"
@@ -8,7 +9,8 @@ apt_install gh
 #   https://github.com/cli/cli/blob/trunk/docs/install_linux.md
 
 log "gh configuration"
-gh config set git_protocol https
+gh config set git_protocol "$GIT_PROTOCOL"
+info "git protocol: $GIT_PROTOCOL"
 gh alias set co 'pr checkout' --clobber >/dev/null 2>&1 || true
 info "alias: gh co = gh pr checkout"
 
@@ -33,7 +35,7 @@ if [ -f "$KEY" ]; then
     info "$KEY already exists"
 else
     # The private key is deliberately NOT in this repo - one fresh key per machine.
-    email="$(git config --global user.email || true)"
+    email="${GIT_EMAIL:-$(git config --global user.email || true)}"
     ssh-keygen -t ed25519 -C "${email:-$(id -un)@$(hostname)}" -f "$KEY" -N ""
     info "generated a new ed25519 key"
 fi

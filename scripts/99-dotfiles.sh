@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Copy the tracked dotfiles into $HOME (existing files are backed up first).
+# profile: GIT_NAME GIT_EMAIL ZSH_PLUGINS ZSH_THEME
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 log "Dotfiles"
@@ -22,6 +23,22 @@ WSLENV
         warn "  export WIN_USER=\"<name>\"; export WIN_HOME=\"/mnt/c/Users/<name>\""
     fi
 fi
+
+# Generated include files. The tracked dotfiles carry no identity; these do.
+log "Profile-generated files"
+BANNER="# Generated from profile '$PROFILE_NAME'. Do not edit; edit the profile and re-run: ./install.sh --only dotfiles"
+
+backup "$HOME/.gitconfig.local"
+printf '%s\n\n[user]\n\tname = %s\n\temail = %s\n' \
+    "$BANNER" "$GIT_NAME" "$GIT_EMAIL" > "$HOME/.gitconfig.local"
+info "installed ~/.gitconfig.local (identity from profile '$PROFILE_NAME')"
+
+mkdir -p "$HOME/.config"
+backup "$HOME/.config/profile-env.zsh"
+# %q keeps a hostile plugin name inert; zsh reads bash's quoting fine.
+printf '%s\n\nZSH_PLUGINS=%q\nZSH_THEME=%q\n' \
+    "$BANNER" "${ZSH_PLUGINS[*]}" "$ZSH_THEME" > "$HOME/.config/profile-env.zsh"
+info "installed ~/.config/profile-env.zsh"
 
 for f in .zshrc .zshenv .gitconfig .gitignore_global; do
     backup "$HOME/$f"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # VS Code: extensions and remote (Machine) settings.
+# profile: VSCODE_EXTENSIONS
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 log "VS Code extensions"
@@ -13,16 +14,14 @@ if ! have code; then
     warn "Skipping extension installation."
 else
     installed="$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')"
-    while read -r ext; do
-        [ -z "$ext" ] && continue
-        case "$ext" in \#*) continue ;; esac
+    for ext in "${VSCODE_EXTENSIONS[@]}"; do
         if grep -qx "$(echo "$ext" | tr '[:upper:]' '[:lower:]')" <<<"$installed"; then
             info "already installed: $ext"
         else
             info "installing: $ext"
             code --install-extension "$ext" --force >/dev/null 2>&1 || warn "failed: $ext"
         fi
-    done < "$REPO_DIR/vscode-extensions.txt"
+    done
 fi
 
 log "VS Code remote settings"
@@ -34,5 +33,6 @@ if [ -d "$HOME/.vscode-server" ]; then
     cp "$REPO_DIR/dotfiles/vscode/settings.json" "$VSCODE_MACHINE_DIR/settings.json"
     info "installed Machine settings.json"
 else
+    # shellcheck disable=SC2088  # a message, not a path
     warn "~/.vscode-server not found; connect VS Code to WSL once, then re-run this module."
 fi

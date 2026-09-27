@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Base system: apt front-ends, core CLI utilities, WSL integration.
+# profile: EXTRA_PACKAGES
 source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 log "Base system packages"
@@ -14,6 +15,13 @@ apt_install nala aptitude ppa-purge
 
 log "CLI utilities"
 apt_install fzf bat w3m command-not-found
+
+# Profiles add packages; they deliberately cannot remove the bootstrap set
+# above, because an installer without curl cannot finish installing.
+if [ ${#EXTRA_PACKAGES[@]} -gt 0 ]; then
+    log "profile packages"
+    apt_install "${EXTRA_PACKAGES[@]}"
+fi
 
 # Ubuntu ships bat as `batcat` to avoid a name clash. Restore the usual name.
 # (The zsh-bat plugin aliases `cat` -> `batcat`; this is separate, and gives a

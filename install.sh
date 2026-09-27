@@ -1,62 +1,114 @@
 #!/usr/bin/env bash
 #
-# Bootstrap a fresh Ubuntu (WSL2) machine.
+# Bootstrap a fresh Ubuntu (WSL2) machine from a declarative profile.
 #
-#   ./install.sh                     run every module
-#   ./install.sh --only shell,python run only those modules
-#   ./install.sh --skip latex        run everything except those
-#   ./install.sh --list              show the modules and exit
+#   ./install.sh --profile wsl-embedded    select a profile and run it
+#   ./install.sh                           re-run the remembered profile
+#   ./install.sh --only shell,python       run only those modules
+#   ./install.sh --skip latex              run everything except those
+#   ./install.sh --dry-run                 print the plan, install nothing
+#   ./install.sh --list                    show the modules and exit
+#   ./install.sh --list-profiles           show the profiles and exit
 #
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$REPO_DIR/lib.sh"
-
-# Order matters: base sets up apt, shell sets up PATH, dotfiles goes last.
-MODULES=(
-    "sudo:00-sudo.sh:passwordless sudo for this user"
-    "locale:02-locale.sh:timezone and UTF-8 locale"
-    "base:05-base.sh:apt front-ends, core CLI tools, WSL integration"
-    "shell:10-shell.sh:zsh, oh-my-zsh, starship, zoxide, mise, eza, Nerd Font"
-    "cpp:20-cpp.sh:gcc, cmake, ninja, gdb, doxygen, LLVM/clang ${CLANG_VERSION:-22}"
-    "embedded:30-embedded.sh:arm-none-eabi toolchain, gdb-multiarch, usb groups"
-    "python:40-python.sh:python3, pipx -> ruff, uv, tldr"
-    "rust:50-rust.sh:rustup with rust-analyzer, clippy, rustfmt"
-    "docker:60-docker.sh:Docker CE, buildx, compose"
-    "github:70-github.sh:gh CLI, git identity, ssh key"
-    "latex:80-latex.sh:TeX Live (large)"
-    "claude:90-claude.sh:Claude Code CLI and configuration"
-    "vscode:95-vscode.sh:VS Code extensions and remote settings"
-    "dotfiles:99-dotfiles.sh:copy .zshrc, .zshenv, .gitconfig, clangd config"
-)
-
-module_name() { echo "${1%%:*}"; }
-module_file() { echo "$1" | cut -d: -f2; }
-module_desc() { echo "$1" | cut -d: -f3-; }
+ACTIVE_FILE="$REPO_DIR/.active-profile"
 
 usage() {
     cat <<USAGE
-Usage: ./install.sh [--only a,b] [--skip a,b] [--list]
+Usage: ./install.sh [--profile NAME] [--only a,b] [--skip a,b] [--dry-run]
+                    [--list] [--list-profiles]
 
-Modules:
+  --profile NAME   the profile to install; remembered in .active-profile
+  --only a,b       run only these modules (of those the profile enables)
+  --skip a,b       run everything the profile enables except these
+  --dry-run        print the plan and exit without installing
+  --list           list the modules
+  --list-profiles  list the available profiles
 USAGE
-    for m in "${MODULES[@]}"; do
-        printf '  %-10s %s\n' "$(module_name "$m")" "$(module_desc "$m")"
-    done
 }
 
-ONLY=""; SKIP=""
+ONLY=""; SKIP=""; PROFILE=""; DRY_RUN=0; LIST=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        --only) ONLY="${2:?--only needs a comma-separated list}"; shift 2 ;;
-        --skip) SKIP="${2:?--skip needs a comma-separated list}"; shift 2 ;;
-        --list|-l) usage; exit 0 ;;
+        --profile) PROFILE="${2:?--profile needs a name}"; shift 2 ;;
+        --only)    ONLY="${2:?--only needs a comma-separated list}"; shift 2 ;;
+        --skip)    SKIP="${2:?--skip needs a comma-separated list}"; shift 2 ;;
+        --dry-run) DRY_RUN=1; shift ;;
+        --list|-l) LIST=modules; shift ;;
+        --list-profiles) LIST=profiles; shift ;;
         --help|-h) usage; exit 0 ;;
-        *) die "unknown argument: $1 (try --help)" ;;
+        *) echo "unknown argument: $1 (try --help)" >&2; exit 1 ;;
     esac
 done
 
+# Listing needs no profile, so lib.sh is loaded without one.
+if [ -n "$LIST" ]; then
+    PROFILE_NAME=""
+    source "$REPO_DIR/lib.sh"
+    if [ "$LIST" = modules ]; then
+        echo "Modules:"
+        while read -r f; do
+            printf '  %-10s %s\n' "$(module_name "$f")" "$(module_desc "$f")"
+        done < <(module_files)
+    else
+        active="$(cat "$ACTIVE_FILE" 2>/dev/null || true)"
+        echo "Profiles:"
+        for name in $(profile_names); do
+            desc="$(bash -c 'source "$1" >/dev/null 2>&1; echo "${DESCRIPTION:-}"' _ "$(profile_file "$name")")"
+            printf '  %-14s %s%s\n' "$name" "$desc" "$([ "$name" = "$active" ] && echo '  (active)')"
+        done
+    fi
+    exit 0
+fi
+
+# Check the profile before anything else: a bad one must not get as far as sudo.
+PROFILE_FROM_FILE=""
+if [ -z "$PROFILE" ]; then
+    if [ -f "$ACTIVE_FILE" ]; then
+        PROFILE="$(cat "$ACTIVE_FILE")"
+        PROFILE_FROM_FILE=1
+    else
+        {
+            echo "[fail] no profile selected and no .active-profile."
+            echo "Pick one with --profile NAME:"
+            for f in "$REPO_DIR"/profiles/*.sh; do echo "  $(basename "$f" .sh)"; done
+        } >&2
+        exit 1
+    fi
+fi
+
+export PROFILE_NAME="$PROFILE"
+source "$REPO_DIR/lib.sh"
+profile_validate
+
+# Remembered only once the profile checked out, so a typo cannot overwrite a
+# working selection.
+printf '%s\n' "$PROFILE" > "$ACTIVE_FILE"
+
 in_list() { echo ",$2," | grep -q ",$1,"; }
+
+# Run order is the scripts' number order, never the order MODULES lists them.
+PLAN=()
+while read -r f; do
+    name="$(module_name "$f")"
+    in_list "$name" "$(IFS=,; echo "${MODULES[*]}")" || continue
+    [ -n "$ONLY" ] && ! in_list "$name" "$ONLY" && continue
+    [ -n "$SKIP" ] &&   in_list "$name" "$SKIP" && continue
+    PLAN+=("$name")
+done < <(module_files)
+
+log "profile: $PROFILE${PROFILE_FROM_FILE:+ (from .active-profile)}"
+info "plan:    ${PLAN[*]:-(nothing)}"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+    for name in "${PLAN[@]}"; do
+        printf '  %-10s %s\n' "$name" "scripts/$(basename "$(module_file "$name")")"
+    done
+    log "dry run: nothing was installed"
+    exit 0
+fi
 
 [ "$(id -u)" -eq 0 ] && die "Run this as your normal user, not root. sudo is called where needed."
 have sudo || die "sudo is required."
@@ -64,21 +116,16 @@ have sudo || die "sudo is required."
 # Ask for sudo once up front so the run is not interrupted later.
 sudo -v
 
-export BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
+BACKUP_STAMP="$(date +%Y%m%d-%H%M%S)"
+export BACKUP_STAMP
 
 log "Starting bootstrap ($(. /etc/os-release && echo "$PRETTY_NAME")$(is_wsl && echo ', WSL'))"
 
-RAN=(); SKIPPED=(); FAILED=()
-for m in "${MODULES[@]}"; do
-    name="$(module_name "$m")"
-    file="$(module_file "$m")"
-
-    if [ -n "$ONLY" ] && ! in_list "$name" "$ONLY"; then SKIPPED+=("$name"); continue; fi
-    if [ -n "$SKIP" ] && in_list "$name" "$SKIP";  then SKIPPED+=("$name"); continue; fi
-
+RAN=(); FAILED=()
+for name in "${PLAN[@]}"; do
     printf '\n%s========== %s ==========%s\n' "$BOLD" "$name" "$RESET"
     # A failing module should not abort the rest of the bootstrap.
-    if bash "$REPO_DIR/scripts/$file"; then
+    if bash "$(module_file "$name")"; then
         RAN+=("$name")
     else
         warn "module '$name' failed"
@@ -87,9 +134,9 @@ for m in "${MODULES[@]}"; do
 done
 
 printf '\n%s========== summary ==========%s\n' "$BOLD" "$RESET"
-[ ${#RAN[@]}     -gt 0 ] && log  "ran:     ${RAN[*]}"     || true
-[ ${#SKIPPED[@]} -gt 0 ] && info "skipped: ${SKIPPED[*]}" || true
-[ ${#FAILED[@]}  -gt 0 ] && warn "failed:  ${FAILED[*]}"  || true
+log "profile: $PROFILE"
+[ ${#RAN[@]}    -gt 0 ] && log  "ran:     ${RAN[*]}"    || true
+[ ${#FAILED[@]} -gt 0 ] && warn "failed:  ${FAILED[*]}" || true
 
 cat <<'NEXT'
 
