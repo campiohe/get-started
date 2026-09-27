@@ -23,6 +23,7 @@ if ! pkg_installed docker-ce; then
 
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${codename} stable" \
         | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+    # shellcheck disable=SC2034  # read by apt_update_once in lib.sh
     APT_UPDATED=0
 fi
 
