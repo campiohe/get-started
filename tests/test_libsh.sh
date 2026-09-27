@@ -35,7 +35,7 @@ check "module_file finds a script by name" "scripts/20-cpp.sh" \
 echo "== lib.sh profile loading =="
 
 check "PROFILE_NAME selects the profile" "Henrique Campiotti" \
-    "$(in_repo 'PROFILE_NAME=wsl-embedded; source lib.sh; echo "$GIT_NAME"')"
+    "$(in_repo 'PROFILE_NAME=wsl-dev; source lib.sh; echo "$GIT_NAME"')"
 echo ci-headless > "$tmp/.active-profile"
 check ".active-profile is the fallback" "ci" \
     "$(in_repo 'source lib.sh; echo "$GIT_NAME"')"
@@ -45,16 +45,16 @@ rm "$tmp/.active-profile"
 check "no profile at all is not an error" "none" \
     "$(in_repo 'source lib.sh; echo "${GIT_NAME:-none}"')"
 check "associative arrays survive loading" "https://github.com/fdellwing/zsh-bat.git" \
-    "$(in_repo 'PROFILE_NAME=wsl-embedded; source lib.sh; echo "${ZSH_PLUGIN_SOURCES[zsh-bat]}"')"
+    "$(in_repo 'PROFILE_NAME=wsl-dev; source lib.sh; echo "${ZSH_PLUGIN_SOURCES[zsh-bat]}"')"
 check "an exported CLANG_VERSION beats the profile" "21" \
-    "$(in_repo 'export CLANG_VERSION=21 PROFILE_NAME=wsl-embedded; source lib.sh; echo "$CLANG_VERSION"')"
+    "$(in_repo 'export CLANG_VERSION=21 PROFILE_NAME=wsl-dev; source lib.sh; echo "$CLANG_VERSION"')"
 check "an unknown profile fails" "failed" \
     "$(outcome 'PROFILE_NAME=nope; source lib.sh')"
 
 echo "== lib.sh profile validation =="
 
 check "committed profiles validate" "passed passed" \
-    "$(outcome 'PROFILE_NAME=wsl-embedded; source lib.sh; profile_validate') $(outcome 'PROFILE_NAME=ci-headless; source lib.sh; profile_validate')"
+    "$(outcome 'PROFILE_NAME=wsl-dev; source lib.sh; profile_validate') $(outcome 'PROFILE_NAME=ci-headless; source lib.sh; profile_validate')"
 
 write_profile() { cp profiles/ci-headless.sh "$tmp/profiles/t.sh"; printf '%s\n' "$@" >> "$tmp/profiles/t.sh"; }
 

@@ -2,7 +2,7 @@
 #
 # Bootstrap a fresh Ubuntu (WSL2) machine from a declarative profile.
 #
-#   ./install.sh --profile wsl-embedded    select a profile and run it
+#   ./install.sh --profile wsl-dev         select a profile and run it
 #   ./install.sh                           re-run the remembered profile
 #   ./install.sh --only shell,python       run only those modules
 #   ./install.sh --skip latex              run everything except those

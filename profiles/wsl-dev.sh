@@ -6,11 +6,11 @@
 # module reads is on the "# profile:" line of its script; setting anything
 # else is an error, so a typo fails instead of doing nothing.
 
-DESCRIPTION="STM32 workstation on WSL2"
+DESCRIPTION="Python, C++, Rust and Node workstation on WSL2"
 
 # Order is irrelevant; modules run in their scripts' number order.
-MODULES=(sudo locale base shell cpp embedded python rust docker github
-         claude vscode dotfiles)
+MODULES=(sudo locale base shell cpp python rust docker github claude vscode
+         dotfiles)
 
 # identity, locale: 02-locale, 70-github, 99-dotfiles
 GIT_NAME="Henrique Campiotti"
@@ -44,13 +44,11 @@ declare -A ZSH_PLUGIN_SOURCES=(
 )
 NERD_FONT=FiraCode
 STARSHIP=true
+# Node comes from mise.
 declare -A MISE_TOOLS=([node]=latest)
 
 # 20-cpp
 CLANG_VERSION=22
-
-# 30-embedded: what ST-Link and USB serial adapters need
-EMBEDDED_GROUPS=(dialout plugdev)
 
 # 40-python
 PIPX_TOOLS=(ruff uv tldr)
@@ -63,7 +61,6 @@ CLAUDE_SETTINGS='{"tui": "fullscreen", "model": "opus"}'
 
 # 95-vscode
 VSCODE_EXTENSIONS=(
-    anthropic.claude-code
     bierner.github-markdown-preview
     bierner.markdown-checkbox
     bierner.markdown-emoji
@@ -79,11 +76,6 @@ VSCODE_EXTENSIONS=(
     eamodio.gitlens
     github.vscode-pull-request-github
     llvm-vs-code-extensions.vscode-clangd
-    marus25.cortex-debug
-    mcu-debug.debug-tracker-vscode
-    mcu-debug.memory-view
-    mcu-debug.peripheral-viewer
-    mcu-debug.rtos-views
     mhutchie.git-graph
     ms-python.debugpy
     ms-python.python

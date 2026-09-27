@@ -6,7 +6,7 @@ Bootstrap script for a fresh **Ubuntu on WSL2** machine.
 git clone https://github.com/GabrielCosme/get-started.git
 cd get-started
 ./install.sh --list-profiles
-./install.sh --profile wsl-embedded
+./install.sh --profile wsl-dev
 ```
 
 Everything is idempotent — re-running is safe, and anything it replaces in `$HOME`
@@ -15,7 +15,7 @@ is copied to `~/.get-started-backup/<timestamp>/` first.
 ## Usage
 
 ```bash
-./install.sh --profile wsl-embedded   # install, and remember the choice
+./install.sh --profile wsl-dev        # install, and remember the choice
 ./install.sh                          # re-run the remembered profile
 ./install.sh --dry-run                # show the plan, install nothing
 ./install.sh --list                   # show modules
@@ -33,13 +33,13 @@ on a module the profile left out.
 
 A profile is one bash file, `profiles/<name>.sh`, describing a whole setup:
 which modules run, which identity to install, which plugins, extensions and
-tools. Scenarios, not people: `wsl-embedded` is a workstation, `ci-headless`
+tools. Scenarios, not people: `wsl-dev` is a workstation, `ci-headless`
 is a container. It is plain variables and arrays, sourced by `lib.sh`:
 
 ```bash
-DESCRIPTION="STM32 workstation on WSL2"
-MODULES=(sudo locale base shell cpp embedded python rust docker github
-         claude vscode dotfiles)
+DESCRIPTION="Python, C++, Rust and Node workstation on WSL2"
+MODULES=(sudo locale base shell cpp python rust docker github claude vscode
+         dotfiles)
 GIT_NAME="Your Name"
 CLANG_VERSION=22
 ZSH_PLUGINS=(git fzf zsh-bat)
@@ -48,7 +48,7 @@ CLAUDE_SETTINGS='{"model": "opus"}'
 
 ```bash
 ./install.sh --list-profiles           # what is available
-./install.sh --profile wsl-embedded    # install, and remember the choice
+./install.sh --profile wsl-dev         # install, and remember the choice
 ./install.sh --dry-run                 # show the plan, install nothing
 ./install.sh --only dotfiles           # re-run one module under that profile
 ./doctor.sh                            # verify the machine against the profile
@@ -61,7 +61,7 @@ inherited and nothing is layered on top, so what the file says is exactly
 what gets installed. Start from the closest existing profile:
 
 ```bash
-cp profiles/wsl-embedded.sh profiles/<name>.sh
+cp profiles/wsl-dev.sh profiles/<name>.sh
 ```
 
 Edit it, then `./install.sh --profile <name>`. A profile only needs the
@@ -115,7 +115,7 @@ they include, so every tracked file is the same on every machine:
 for setups you do not want to commit, and you select it by name:
 
 ```bash
-cp profiles/wsl-embedded.sh profiles/local.sh   # then edit it
+cp profiles/wsl-dev.sh profiles/local.sh   # then edit it
 ./install.sh --profile local
 ```
 
@@ -141,7 +141,7 @@ cp profiles/wsl-embedded.sh profiles/local.sh   # then edit it
 | `github` | `gh` CLI, `gh co` alias, HTTPS protocol, ed25519 key generated **and registered on GitHub** via `gh ssh-key add`, then verified |
 | `latex` | `texlive-latex-extra`, `texlive-fonts-extra` (~2 GB) |
 | `claude` | Claude Code CLI, `settings.json` (merged with `jq`), `statusline.py`, `CLAUDE.md` |
-| `vscode` | the profile's `VSCODE_EXTENSIONS` (45 in `wsl-embedded`), Machine `settings.json` |
+| `vscode` | the profile's `VSCODE_EXTENSIONS` (39 in `wsl-dev`), Machine `settings.json` |
 | `dotfiles` | `.zshrc`, `.zshenv`, `.gitconfig`, `.gitignore_global`, clangd config, generated `~/.config/wsl-env.zsh` |
 
 ## Checking the result

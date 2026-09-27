@@ -25,8 +25,8 @@ echo "== install.sh =="
 
 out="$(./install.sh --list-profiles 2>&1)"
 contains "--list-profiles shows ci-headless"  "$out" "ci-headless"
-contains "--list-profiles shows wsl-embedded" "$out" "wsl-embedded"
-contains "--list-profiles shows descriptions" "$out" "STM32"
+contains "--list-profiles shows wsl-dev"      "$out" "wsl-dev"
+contains "--list-profiles shows descriptions" "$out" "Rust and Node"
 
 out="$(./install.sh --list 2>&1)"
 contains "--list shows a module"       "$out" "embedded"
@@ -39,29 +39,30 @@ else
     pass "no profile and no .active-profile is an error"
 fi
 out="$(./install.sh --dry-run 2>&1 || true)"
-contains "the error lists the profiles" "$out" "wsl-embedded"
+contains "the error lists the profiles" "$out" "wsl-dev"
 
-out="$(./install.sh --profile wsl-embedded --dry-run 2>&1)"
-contains "--dry-run reports the profile"  "$out" "wsl-embedded"
-contains "--dry-run plans embedded"       "$out" "embedded"
+out="$(./install.sh --profile wsl-dev --dry-run 2>&1)"
+contains "--dry-run reports the profile"  "$out" "wsl-dev"
+contains "--dry-run plans rust"           "$out" "50-rust.sh"
+lacks    "--dry-run omits embedded"       "$out" "30-embedded.sh"
 lacks    "--dry-run omits disabled latex" "$out" "80-latex.sh"
 contains "--dry-run says nothing ran"     "$out" "dry run"
 
-if [ "$(cat "$ACTIVE")" = "wsl-embedded" ]; then
+if [ "$(cat "$ACTIVE")" = "wsl-dev" ]; then
     pass "--profile is remembered in .active-profile"
 else
     fail "--profile is remembered in .active-profile"
 fi
 
 out="$(./install.sh --dry-run 2>&1)"
-contains "the remembered profile is reused" "$out" "wsl-embedded"
+contains "the remembered profile is reused" "$out" "wsl-dev"
 
 out="$(./install.sh --dry-run --only cpp 2>&1)"
 contains "--only keeps cpp"      "$out" "20-cpp.sh"
-lacks    "--only drops embedded" "$out" "30-embedded.sh"
+lacks    "--only drops rust"     "$out" "50-rust.sh"
 
-out="$(./install.sh --dry-run --skip embedded 2>&1)"
-lacks    "--skip drops embedded" "$out" "30-embedded.sh"
+out="$(./install.sh --dry-run --skip rust 2>&1)"
+lacks    "--skip drops rust"     "$out" "50-rust.sh"
 contains "--skip keeps cpp"      "$out" "20-cpp.sh"
 
 out="$(./install.sh --dry-run --only latex 2>&1 || true)"
@@ -80,7 +81,7 @@ rm -f profiles/zz-broken-test.sh
 contains "a profile with a typo is refused before anything runs" "$out" "CLANG_VERSON"
 lacks    "a refused profile plans nothing" "$out" "plan:"
 
-if [ "$(cat "$ACTIVE")" = "wsl-embedded" ]; then
+if [ "$(cat "$ACTIVE")" = "wsl-dev" ]; then
     pass ".active-profile is untouched by a failed selection"
 else
     fail ".active-profile is untouched by a failed selection"

@@ -66,7 +66,7 @@ fi
 # The generated files must carry the profile. Run the real module against a
 # scratch HOME; it only writes under $HOME.
 home="$tmp/home"; mkdir -p "$home"
-if HOME="$home" PROFILE_NAME=wsl-embedded bash scripts/99-dotfiles.sh >/dev/null 2>&1; then
+if HOME="$home" PROFILE_NAME=wsl-dev bash scripts/99-dotfiles.sh >/dev/null 2>&1; then
     pass "99-dotfiles runs against a scratch HOME"
 else
     fail "99-dotfiles runs against a scratch HOME"
@@ -91,7 +91,7 @@ fi
 
 # 90-claude merges CLAUDE_SETTINGS over the tracked settings.json with jq.
 if command -v jq >/dev/null 2>&1; then
-    settings="$(PROFILE_NAME=wsl-embedded bash -c 'source lib.sh; echo "$CLAUDE_SETTINGS"')"
+    settings="$(PROFILE_NAME=wsl-dev bash -c 'source lib.sh; echo "$CLAUDE_SETTINGS"')"
     cmd="$(grep -o "jq -S -s '[^']*'" scripts/90-claude.sh)"
     merged="$(eval "$cmd dotfiles/.claude/settings.json -" <<<"$settings")"
     if [ "$(jq -r .model <<<"$merged")" = opus ] && \
