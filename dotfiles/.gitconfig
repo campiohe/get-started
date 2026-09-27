@@ -1,6 +1,8 @@
-[user]
-	name = GabrielCosme
-	email = cosmebarbosa.gabriel@gmail.com
+# Identity is not tracked here. ~/.gitconfig.local is generated from the
+# active profile by scripts/99-dotfiles.sh, so this file is the same on every
+# machine and never rewrites somebody else's name onto yours.
+[include]
+	path = ~/.gitconfig.local
 
 [init]
 	defaultBranch = main

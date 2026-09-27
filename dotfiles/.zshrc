@@ -1,20 +1,14 @@
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 
+# Theme and plugins come from the active profile via a generated file. The
+# defaults below keep the shell usable if it is missing or half-written.
 ZSH_THEME="robbyrussell"
-
-plugins=(
-    git
-    fzf
-    fzf-tab
-    fast-syntax-highlighting
-    zsh-autosuggestions
-    zsh-bat
-    command-not-found
-    extract
-    sudo
-    web-search
-)
+ZSH_PLUGINS="git"
+if [ -f "$HOME/.config/profile-env.zsh" ]; then
+    source "$HOME/.config/profile-env.zsh"
+fi
+plugins=(${=ZSH_PLUGINS})
 
 source $ZSH/oh-my-zsh.sh
 
