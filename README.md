@@ -5,7 +5,8 @@ Bootstrap script for a fresh **Ubuntu on WSL2** machine.
 ```bash
 git clone https://github.com/GabrielCosme/get-started.git
 cd get-started
-./install.sh
+./install.sh --list-profiles
+./install.sh --profile wsl-embedded
 ```
 
 Everything is idempotent — re-running is safe, and anything it replaces in `$HOME`
@@ -14,12 +15,114 @@ is copied to `~/.get-started-backup/<timestamp>/` first.
 ## Usage
 
 ```bash
-./install.sh                      # everything
-./install.sh --list               # show modules
-./install.sh --skip latex         # everything but TeX Live
-./install.sh --skip sudo          # keep the sudo password prompt
+./install.sh --profile wsl-embedded   # install, and remember the choice
+./install.sh                          # re-run the remembered profile
+./install.sh --dry-run                # show the plan, install nothing
+./install.sh --list                   # show modules
+./install.sh --list-profiles          # show profiles
+./install.sh --skip latex             # everything but TeX Live
+./install.sh --skip sudo              # keep the sudo password prompt
 ./install.sh --only shell,dotfiles
 CLANG_VERSION=21 ./install.sh --only cpp   # pin a different LLVM release
+```
+
+`--only` and `--skip` narrow what the profile already enables; neither can turn
+on a module the profile left out.
+
+## Profiles
+
+A profile is one bash file, `profiles/<name>.sh`, describing a whole setup:
+which modules run, which identity to install, which plugins, extensions and
+tools. Scenarios, not people: `wsl-embedded` is a workstation, `ci-headless`
+is a container. It is plain variables and arrays, sourced by `lib.sh`:
+
+```bash
+DESCRIPTION="STM32 workstation on WSL2"
+MODULES=(sudo locale base shell cpp embedded python rust docker github
+         claude vscode dotfiles)
+GIT_NAME="Your Name"
+CLANG_VERSION=22
+ZSH_PLUGINS=(git fzf zsh-bat)
+CLAUDE_SETTINGS='{"model": "opus"}'
+```
+
+```bash
+./install.sh --list-profiles           # what is available
+./install.sh --profile wsl-embedded    # install, and remember the choice
+./install.sh --dry-run                 # show the plan, install nothing
+./install.sh --only dotfiles           # re-run one module under that profile
+./doctor.sh                            # verify the machine against the profile
+```
+
+### Adding a scenario
+
+A profile is self-contained: one file is the whole setup. Nothing is
+inherited and nothing is layered on top, so what the file says is exactly
+what gets installed. Start from the closest existing profile:
+
+```bash
+cp profiles/wsl-embedded.sh profiles/<name>.sh
+```
+
+Edit it, then `./install.sh --profile <name>`. A profile only needs the
+variables of the modules it enables; `ci-headless` has no `CLANG_VERSION`
+because it does not run `cpp`.
+
+### Adding a module
+
+Drop a script into `scripts/` named `NN-name.sh`. The number is the run order,
+`name` is what `MODULES`, `--only` and `--skip` use, and the first two lines
+are the whole contract:
+
+```bash
+#!/usr/bin/env bash
+# One-line description, shown by ./install.sh --list.
+# profile: VAR_A VAR_B
+source "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
+```
+
+The `# profile:` line names the profile variables the module reads. Together
+these lines are the full list of variables a profile may set.
+
+### Checks
+
+`./install.sh` checks the profile before it asks for sudo or installs anything:
+
+- A variable no module reads is an error, so `CLANG_VERSON=21` fails loudly.
+- Every name in `MODULES` must have a script.
+- Every enabled module's `# profile:` variables must be set.
+- A module run on its own (`bash scripts/20-cpp.sh`) checks its own variables
+  against the remembered profile.
+
+The environment still wins for `CLANG_VERSION` and `TIMEZONE`:
+`CLANG_VERSION=21 ./install.sh --only cpp` beats whatever the profile says.
+
+### How values reach the dotfiles
+
+Tracked dotfiles carry no identity. The installer generates small files that
+they include, so every tracked file is the same on every machine:
+
+| Generated | Consumed by |
+|---|---|
+| `~/.gitconfig.local` | `[include]` in `~/.gitconfig` |
+| `~/.config/profile-env.zsh` | sourced by `~/.zshrc` |
+| `~/.config/mise/config.toml` | mise |
+| `~/.claude/settings.json` | Claude Code (tracked file with `CLAUDE_SETTINGS` merged over it by `jq`) |
+
+### A machine-only profile
+
+`profiles/local.sh` is gitignored. It is a complete profile like any other,
+for setups you do not want to commit, and you select it by name:
+
+```bash
+cp profiles/wsl-embedded.sh profiles/local.sh   # then edit it
+./install.sh --profile local
+```
+
+### Tests
+
+```bash
+./tests/run.sh                 # shell tests, then shellcheck if installed
 ```
 
 ## Modules
@@ -37,8 +140,8 @@ CLANG_VERSION=21 ./install.sh --only cpp   # pin a different LLVM release
 | `docker` | Docker CE, CLI, containerd, buildx, compose; `docker` group; service enabled |
 | `github` | `gh` CLI, `gh co` alias, HTTPS protocol, ed25519 key generated **and registered on GitHub** via `gh ssh-key add`, then verified |
 | `latex` | `texlive-latex-extra`, `texlive-fonts-extra` (~2 GB) |
-| `claude` | Claude Code CLI, `settings.json`, `statusline.py`, `CLAUDE.md` |
-| `vscode` | 45 extensions from `vscode-extensions.txt`, Machine `settings.json` |
+| `claude` | Claude Code CLI, `settings.json` (merged with `jq`), `statusline.py`, `CLAUDE.md` |
+| `vscode` | the profile's `VSCODE_EXTENSIONS` (45 in `wsl-embedded`), Machine `settings.json` |
 | `dotfiles` | `.zshrc`, `.zshenv`, `.gitconfig`, `.gitignore_global`, clangd config, generated `~/.config/wsl-env.zsh` |
 
 ## Checking the result
@@ -73,7 +176,8 @@ subprocess. Re-run it with `./install.sh --only dotfiles`.
 
 ## Git configuration
 
-`dotfiles/.gitconfig` carries more than identity. The notable settings:
+`dotfiles/.gitconfig` carries no identity at all — that comes from the profile
+via `~/.gitconfig.local`. What it does carry:
 
 | Setting | Effect |
 |---|---|
@@ -144,5 +248,7 @@ cp ~/.zshrc ~/.zshenv ~/.gitconfig dotfiles/
 cp ~/.config/clangd/config.yaml dotfiles/.config/clangd/
 cp ~/.claude/{settings.json,statusline.py,CLAUDE.md} dotfiles/.claude/
 cp ~/.vscode-server/data/Machine/settings.json dotfiles/vscode/
-code --list-extensions > vscode-extensions.txt
 ```
+
+For VS Code extensions, `code --list-extensions` gives the list to paste into
+the profile's `VSCODE_EXTENSIONS`.
